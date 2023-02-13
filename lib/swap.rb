@@ -1,35 +1,8 @@
-#!/usr/bin/ruby
-
-module LZO
-	INFILE = '/dev/shm/__swsusp2bin_lzo.in'
-	OUTFILE = '/dev/shm/__swsusp2bin_lzo.out'
-	LZO_COMPRESSOR = File.dirname(__FILE__) + '/minilzo-2.10/compress'
-	LZO_DECOMPRESSOR = File.dirname(__FILE__) + '/minilzo-2.10/decompress'
-
-	def self.decompress(s)
-		file = File.open(INFILE, 'w')
-		file.write(s)
-		file.close
-		system("#{LZO_DECOMPRESSOR} #{INFILE} #{OUTFILE}") || raise("Decompression failure")
-		file = File.open(OUTFILE, 'rb')
-		result = file.read
-		file.close
-		result
-	end
-
-	def self.compress(s)
-		file = File.open(INFILE, 'w')
-		file.write(s)
-		file.close
-		system("#{LZO_COMPRESSOR} #{INFILE} #{OUTFILE}") || raise("Compression failure")
-		file = File.open(OUTFILE, 'rb')
-		result = file.read
-		file.close
-		result
-	end
-end
+require 'lib/lzo'
 
 class Swap
+	attr_reader :sectors
+
 	def initialize(path)
 		raise "File not found: #{path}" unless File.exists?(path)
 		raise "Can't read file: #{path}" unless File.readable?(path)
@@ -113,9 +86,9 @@ class Swap
 
 		@map_page_list
 	rescue
-		warn "Warning: MapPageList is out of bounds! (#{@map_page_list[-1].next_swap * PAGE_SIZE})"
-		warn "Pages parsed: #{@map_page_list.size * MAP_PAGE_ENTRIES}"
-		warn "Last read: #{@map_page_list[-2].next_swap * PAGE_SIZE}" rescue nil
+		warn "Warning: MapPageList is out of bounds! (#{@map_page_list[-1].next_swap * PAGE_SIZE}).\n" \
+			"Warning: Pages parsed: #{@map_page_list.size * MAP_PAGE_ENTRIES}. " \
+			"Last read: #{@map_page_list[-2].next_swap * PAGE_SIZE}." rescue nil
 		@map_page_list
 	end
 
@@ -270,15 +243,15 @@ class Swap
 		@cmp_sizes
 	end
 
+	def read_cmp_len(n)
+		@swap.seek(n * PAGE_SIZE)
+		@swap.read(LZO_HEADER).unpack('Q')[0]
+	end
+
 	private
 	def read_sector(n)
 		@swap.seek(n * PAGE_SIZE)
 		@swap.read(PAGE_SIZE)
-	end
-
-	def read_cmp_len(n)
-		@swap.seek(n * PAGE_SIZE)
-		@swap.read(LZO_HEADER).unpack('Q')[0]
 	end
 
 	# #define DIV_ROUND_UP(n, d)  (((n) + (d) - 1) / (d))
@@ -302,30 +275,3 @@ class Swap
 		@cmp_indexes
 	end
 end
-
-abort "#$0 <swap> [<uncomp_swap>]" unless [1, 2].include?(ARGV.size)
-swap = Swap.new(ARGV[0]) rescue abort($!.to_s)
-
-swap.dump_header
-swap.dump_swsusp_info
-swap.dump_lzo_constants
-
-exit if ARGV.size == 1
-
-out_file = ARGV[1]
-abort "File '#{out_file}' exists! Exiting..." if File.exists?(out_file)
-
-out_file = File.open(out_file, 'w')
-at_exit { out_file.close }
-
-puts "\nUncompressing swap..."
-cmp_len, unc_len = 0, 0
-(0...swap.cmp_chunks).each do |i|
-	print "[#{((i + 1) * 100 / swap.cmp_chunks.to_f).round}%] #{i + 1}/#{swap.cmp_chunks}\r"
-	cmp_len += swap.cmp_sizes[i]
-	unc = swap.unc_chunk(i)
-	unc_len += unc.length
-	out_file.write(unc)
-end
-puts "Compressed size:   #{cmp_len}"
-puts "Uncompressed size: #{unc_len}"
