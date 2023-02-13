@@ -25,8 +25,8 @@ abort "#$0 <swap> [<uncomp_swap>]" unless [1, 2].include?(ARGV.size)
 swap = Swap.new(ARGV[0]) rescue abort($!.to_s)
 
 swap.dump_header
-swap.dump_swsusp_info
-swap.dump_lzo_constants
+#swap.dump_swsusp_info
+#swap.dump_lzo_constants
 
 exit if ARGV.size == 1
 
@@ -40,7 +40,8 @@ puts "\nUncompressing swap..."
 cmp_len, unc_len = 0, 0
 
 (0...swap.sectors).each do |i|
-	print "[#{((i + 1) * 100.00 / swap.sectors).round}%] #{i + 1}/#{swap.sectors} cmp/unc: #{cmp_len}/#{unc_len}\r"
+	percent = (i + 1) * 100.00 / swap.sectors
+	print "[#{percent.round(1)}%] #{i + 1}/#{swap.sectors}  cmp/unc: #{cmp_len}/#{unc_len}\r"
 	unc = swap.unc_straight(i)
 	if unc
 		cmp_len += swap.read_cmp_len(i)

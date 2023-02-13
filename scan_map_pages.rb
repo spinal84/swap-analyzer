@@ -23,7 +23,6 @@ abort "#$0 <swap> [<uncomp_swap>]" unless [1, 2].include?(ARGV.size)
 swap = Swap.new(ARGV[0]) rescue abort($!.to_s)
 
 swap.dump_header
-swap.dump_swsusp_info
 
 marshal_file = '/dev/shm/__possible_map_pages__'
 if File.exists? marshal_file
@@ -88,11 +87,4 @@ puts "Sorting..."
 map_pages_lists.sort! {|a, b| b.length <=> a.length }
 map_pages_lists2.clear
 
-map_pages_lists.each do |l|
-	if l.length > 1
-		p l
-		next
-	end
-	#puts "#{l.inspect}, next_swap = #{swap.map_page_possible(l[0]).next_swap}"
-	puts "#{l.inspect}, #{swap.map_page_possible(l[0]).inspect}"
-end
+map_pages_lists.each {|l| p l }

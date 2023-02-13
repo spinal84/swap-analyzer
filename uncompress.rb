@@ -7,7 +7,7 @@ swap = Swap.new(ARGV[0]) rescue abort($!.to_s)
 
 swap.dump_header
 swap.dump_swsusp_info
-swap.dump_lzo_constants
+#swap.dump_lzo_constants
 
 exit if ARGV.size == 1
 
